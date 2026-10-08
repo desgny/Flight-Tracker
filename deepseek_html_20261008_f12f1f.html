@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>✈ Flight Tracker — PocketWorld + Proxy</title>
+
+<!-- Leaflet CSS (CDN) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+/* =========================================================
+   THEME / VARIABEL
+   ========================================================= */
+:root {
+  --bg:        #0b1220;
+  --bg-2:      #111a2b;
+  --card:      #131d30;
+  --card-2:    #17233a;
+  --border:    #1f2c44;
+  --text:      #e6edf7;
+  --muted:     #8b9bb4;
+  --accent:    #38bdf8;
+  --accent-2:  #0ea5e9;
+  --green:     #22c55e;
+  --yellow:    #eab308;
+  --red:       #ef4444;
+  --radius:    14px;
+  --shadow:    0 10px 30px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  background:
+    radial-gradient(1100px 620px at 8% -12%, #17253e 0%, transparent 60%),
+    radial-gradient(900px 520px at 100% 0%, #10233a 0%, transparent 55%),
+    var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =========================================================
+   TOPBAR
+   ========================================================= */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(11,18,32,.82);
+  backdrop-filter: blur(10px);
+  flex: 0 0 auto;
+  z-index: 500;
+}
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand .logo {
+  width: 40px; height: 40px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  border-radius: 11px;
+  background: linear-gradient(140deg, var(--accent), #6366f1);
+  color: #04121f; font-size: 20px;
+  box-shadow: 0 6px 18px rgba(56,189,248,.28);
+}
+.brand h1 { margin: 0; font-size: 16px; letter-spacing: .2px; white-space: nowrap; }
+.brand p  { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+
+.badge {
+  font-size: 11.5px; color: var(--muted);
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 5px 10px; border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   LAYOUT
+   ========================================================= */
+.app {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 410px 1fr;
+  gap: 14px;
+  padding: 14px;
+}
+.sidebar {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+}
+.sidebar::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-thumb { background: #22314b; border-radius: 8px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+
+/* =========================================================
+   CARD
+   ========================================================= */
+.card {
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* =========================================================
+   FORM
+   ========================================================= */
+.search-row { display: flex; gap: 8px; }
+.search-row input { flex: 1 1 auto; min-width: 0; }
+
+input[type="text"], input[type="password"] {
+  width: 100%;
+  background: #0d1728;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  font-family: inherit;
+}
+input::placeholder { color: #5c6b83; }
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(56,189,248,.14);
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .1s, background .15s, border-color .15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn:hover { background: #1d2b45; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary {
+  background: linear-gradient(140deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  color: #04121f;
+}
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.ghost { background: transparent; }
+.btn.ghost:hover { background: #1a2740; }
+.btn.small { padding: 7px 11px; font-size: 12px; border-radius: 9px; }
+
+.hint { margin: 9px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.hint code {
+  background: #0d1728; border: 1px solid var(--border);
+  padding: 1px 5px; border-radius: 5px; font-size: 11px; color: #9fd7ff;
+}
+
+/* =========================================================
+   SPINNER & ALERT
+   ========================================================= */
+.spinner {
+  width: 16px; height: 16px; flex: 0 0 auto;
+  border: 2px solid rgba(255,255,255,.18);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+  vertical-align: -3px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-line {
+  display: flex; align-items: center; gap: 9px;
+  margin-top: 10px; font-size: 12.5px; color: var(--accent);
+}
+
+.alert {
+  margin-top: 10px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  border: 1px solid;
+}
+.alert.error   { background: rgba(239,68,68,.09);  border-color: rgba(239,68,68,.42);  color: #ffb4b4; }
+.alert.warn    { background: rgba(234,179,8,.09);  border-color: rgba(234,179,8,.42);  color: #ffe08a; }
+.alert.info    { background: rgba(56,189,248,.08); border-color: rgba(56,189,248,.32); color: #a8e2ff; }
+.alert.ok      { background: rgba(34,197,94,.09);  border-color: rgba(34,197,94,.42);  color: #a7f3c0; }
+.alert a { color: inherit; }
+
+/* =========================================================
+   HASIL PENCARIAN
+   ========================================================= */
+.res-head { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+.res-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.res-list::-webkit-scrollbar { width: 7px; }
+.res-list::-webkit-scrollbar-thumb { background: #22314b; border-radius: 8px; }
+
+.res-item {
+  display: flex; flex-direction: column; gap: 2px;
+  text-align: left;
+  width: 100%;
+  background: #0e1829;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 11px;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+  transition: border-color .15s, background .15s;
+}
+.res-item:hover { border-color: var(--accent); background: #11203a; }
+.res-item.active { border-color: var(--accent); background: rgba(56,189,248,.10); }
+.res-call { font-size: 13.5px; font-weight: 700; letter-spacing: .4px; }
+.res-meta { font-size: 11px; color: var(--muted); }
+
+.empty {
+  font-size: 12.5px; color: var(--muted);
+  padding: 12px; text-align: center;
+  border: 1px dashed var(--border); border-radius: 10px;
+}
+
+/* =========================================================
+   DETAIL GRID
+   ========================================================= */
+.detail-grid { display: flex; flex-direction: column; gap: 0; }
+.detail-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 8px 2px;
+  border-bottom: 1px solid rgba(31,44,68,.6);
+  font-size: 12.5px;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-row .k { color: var(--muted); flex: 0 0 auto; }
+.detail-row .v { text-align: right; font-weight: 600; word-break: break-word; }
+.dim { color: var(--muted); font-weight: 400; }
+
+.tag {
+  display: inline-block;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .5px;
+  padding: 2px 8px; border-radius: 999px;
+  text-transform: uppercase;
+}
+.tag.air    { background: rgba(34,197,94,.14);  color: #86efac; border: 1px solid rgba(34,197,94,.4); }
+.tag.ground { background: rgba(234,179,8,.14);  color: #fde68a; border: 1px solid rgba(234,179,8,.4); }
+
+/* =========================================================
+   PETA
+   ========================================================= */
+.map-wrap {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 0;
+  box-shadow: var(--shadow);
+}
+#map { width: 100%; height: 100%; background: #0b1220; }
+
+.map-overlay {
+  position: absolute; top: 10px; left: 10px;
+  display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  z-index: 600;
+}
+.chip {
+  font-size: 11px; color: var(--muted);
+  background: rgba(11,18,32,.86);
+  border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: 999px;
+  backdrop-filter: blur(6px);
+}
+
+.legend {
+  position: absolute; bottom: 12px; left: 10px;
+  display: none;
+  gap: 12px; flex-wrap: wrap;
+  background: rgba(11,18,32,.86);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 11px; color: var(--muted);
+  z-index: 600;
+  backdrop-filter: blur(6px);
+}
+.legend.show { display: flex; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.plane-icon { background: none !important; border: none !important; }
+.plane-icon svg { display: block; filter: drop-shadow(0 0 5px rgba(56,189,248,.85)); }
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #101b2d; color: var(--text);
+  border: 1px solid var(--border);
+}
+.leaflet-popup-content { margin: 10px 12px; font-size: 12.5px; line-height: 1.6; }
+.leaflet-popup-content b { color: var(--accent); }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+.leaflet-control-attribution {
+  background: rgba(11,18,32,.8) !important;
+  color: #64748b !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a { color: #7dd3fc !important; }
+.leaflet-bar a {
+  background: #131d30 !important; color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.leaflet-bar a:hover { background: #1d2b45 !important; }
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 980px) {
+  body { height: auto; overflow: auto; }
+  .app { grid-template-columns: 1fr; padding: 10px; }
+  .sidebar { overflow: visible; padding-right: 0; }
+  .map-wrap { height: 62vh; min-height: 340px; order: -1; }
+  .brand p { display: none; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- =================== TOPBAR =================== -->
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">✈</div>
+    <div>
+      <h1>Flight Tracker</h1>
+      <p>PocketWorld API via Cloudflare Proxy</p>
+    </div>
+  </div>
+  <div class="badge" id="reqBadge">0 request</div>
+</header>
+
+<!-- =================== APP =================== -->
+<div class="app">
+
+  <!-- ---------- SIDEBAR ---------- -->
+  <aside class="sidebar">
+
+    <!-- PENCARIAN -->
+    <section class="card">
+      <h2>Cari Pesawat</h2>
+      <div class="search-row">
+        <input id="searchInput" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Callsign (GIA123) / ICAO24 (7502b7)">
+        <button id="btnSearch" class="btn primary">Cari</button>
+        <button id="btnReset" class="btn ghost">Reset</button>
+      </div>
+      <p class="hint">
+        Contoh: <code>GIA123</code>, <code>AXM1395</code>, atau hex <code>7502b7</code>.
+        Tekan <b>Enter</b> untuk mencari.
+      </p>
+      <div id="searchStatus"></div>
+    </section>
+
+    <!-- HASIL -->
+    <section class="card">
+      <h2>Hasil Pencarian</h2>
+      <div id="resultsEl">
+        <div class="empty">Belum ada pencarian.</div>
+      </div>
+    </section>
+
+    <!-- DETAIL -->
+    <section class="card">
+      <h2>Detail Pesawat</h2>
+      <div id="detailEl">
+        <div class="empty">Klik salah satu hasil untuk melihat detail &amp; melacak di peta.</div>
+      </div>
+    </section>
+
+    <!-- DELAY & JADWAL -->
+    <section class="card">
+      <h2>Delay &amp; Jadwal</h2>
+
+      <div class="alert info" style="margin-top:0">
+        <b>Delay per-bandara</b> tersedia gratis via PocketWorld (tanpa API key).
+        Untuk <b>delay per-penerbangan</b>, diperlukan API tambahan
+        (<a href="https://aviationstack.com" target="_blank" rel="noopener">AviationStack</a>).
+      </div>
+
+      <button id="btnAirportDelays" class="btn small" style="margin-top:10px;width:100%">
+        🛬 Muat Delay Bandara (PocketWorld)
+      </button>
+      <div id="airportDelaysEl"></div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+      <label class="hint" for="avKey" style="display:block;margin-bottom:5px">
+        AviationStack API Key (opsional)
+      </label>
+      <input id="avKey" type="password" autocomplete="off" spellcheck="false"
+             placeholder="access_key Anda">
+
+      <div style="margin-top:9px">
+        <label class="hint" for="avFlight" style="display:block;margin-bottom:5px">
+          Flight IATA (opsional)
+        </label>
+        <input id="avFlight" type="text" autocomplete="off" spellcheck="false"
+               placeholder="cth: GA123">
+      </div>
+
+      <button id="btnAv" class="btn primary" style="margin-top:10px;width:100%">
+        Cek Delay &amp; Jadwal Penerbangan
+      </button>
+      <div id="avResult"></div>
+    </section>
+
+  </aside>
+
+  <!-- ---------- PETA ---------- -->
+  <main class="map-wrap">
+    <div id="map"></div>
+
+    <div class="map-overlay">
+      <button id="btnLive" class="btn small">🛰 Live Map: OFF</button>
+      <button id="btnRefreshMap" class="btn small ghost">⟳ Refresh</button>
+      <span class="chip" id="liveCount">—</span>
+    </div>
+
+    <div class="legend" id="legend">
+      <span><i style="background:#22c55e"></i> &lt; 3.000 m</span>
+      <span><i style="background:#eab308"></i> 3.000–8.000 m</span>
+      <span><i style="background:#ef4444"></i> &gt; 8.000 m</span>
+      <span><i style="background:#8b9bb4"></i> alt tidak diketahui</span>
+    </div>
+  </main>
+
+</div>
+
+<!-- =================== LEAFLET JS =================== -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* =========================================================================
+   FLIGHT TRACKER — PocketWorld API via Cloudflare Worker Proxy
+   =========================================================================
+   ⚠️ LANGKAH WAJIB:
+   Ganti nilai PROXY_URL di bawah ini dengan URL Cloudflare Worker kamu.
+   Contoh: 'https://flight-proxy.namamu.workers.dev'
+   ========================================================================= */
+
+const PROXY_URL = 'https://flight-proxy.USERNAME.workers.dev'; // ← GANTI INI!
+
+const API_BASE = 'https://pocketworld.org/api';
+
+/* -------------------------------------------------------------------------
+   KONFIGURASI
+   ------------------------------------------------------------------------- */
+const CACHE_TTL_SEARCH  = 60_000;
+const CACHE_TTL_BBOX    = 20_000;
+const CACHE_TTL_LIVE    = 45_000;
+const REFRESH_TRACKED   = 15_000;
+const REFRESH_LIVE      = 60_000;
+
+const LIVE_BBOX   = '95,-11,141,6';   // Indonesia
+const GLOBAL_BBOX = '-180,-90,180,90';
+const GLOBAL_LIMIT = 5000;
+const TRACK_PAD = 1.5;
+
+const M_TO_FT     = 3.28084;
+const MS_TO_KMH   = 3.6;
+const MS_TO_KNOTS = 1.94384;
+const MS_TO_FTMIN = 196.85;
+
+/* -------------------------------------------------------------------------
+   STATE & CACHE
+   ------------------------------------------------------------------------- */
+const state = {
+  tracked:      null,
+  trackedIcao:  null,
+  results:      new Map(),
+  liveMode:     false,
+  reqCount:     0,
+  trackedTimer: null,
+  liveTimer:    null,
+};
+
+const cache = {
+  global: { ts: 0, data: null },
+  bbox:   new Map(),
+};
+
+/* -------------------------------------------------------------------------
+   DOM
+   ------------------------------------------------------------------------- */
+const $ = (id) => document.getElementById(id);
+
+const searchInput      = $('searchInput');
+const btnSearch        = $('btnSearch');
+const btnReset         = $('btnReset');
+const searchStatus     = $('searchStatus');
+const resultsEl        = $('resultsEl');
+const detailEl         = $('detailEl');
+const reqBadge         = $('reqBadge');
+const btnLive          = $('btnLive');
+const btnRefreshMap    = $('btnRefreshMap');
+const liveCountEl      = $('liveCount');
+const legendEl         = $('legend');
+const avKey            = $('avKey');
+const avFlight         = $('avFlight');
+const btnAv            = $('btnAv');
+const avResult         = $('avResult');
+const btnAirportDelays = $('btnAirportDelays');
+const airportDelaysEl  = $('airportDelaysEl');
+
+/* -------------------------------------------------------------------------
+   UTILITAS
+   ------------------------------------------------------------------------- */
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function fmtNum(n, decimals = 0) {
+  if (n == null || !isFinite(n)) return '—';
+  return Number(n).toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+const mToFt   = (m) => m * M_TO_FT;
+const msToKmh = (v) => v * MS_TO_KMH;
+const msToKt  = (v) => v * MS_TO_KNOTS;
+
+function fmtTime(unixSec) {
+  if (!unixSec) return '—';
+  return new Date(unixSec * 1000).toLocaleTimeString('id-ID', { hour12: false });
+}
+
+function relTime(unixSec) {
+  if (!unixSec) return '—';
+  const d = Math.max(0, Math.floor(Date.now() / 1000 - unixSec));
+  if (d < 60)    return `${d} detik lalu`;
+  if (d < 3600)  return `${Math.floor(d / 60)} menit lalu`;
+  if (d < 86400) return `${Math.floor(d / 3600)} jam lalu`;
+  return `${Math.floor(d / 86400)} hari lalu`;
+}
+
+function compass(deg) {
+  if (deg == null) return '';
+  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+  return dirs[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+}
+
+function altColor(altMeters) {
+  if (altMeters == null || !isFinite(altMeters)) return '#8b9bb4';
+  if (altMeters < 3000)  return '#22c55e';
+  if (altMeters <= 8000) return '#eab308';
+  return '#ef4444';
+}
+
+/* -------------------------------------------------------------------------
+   PROXY HELPER — semua request ke PocketWorld lewat sini
+   ------------------------------------------------------------------------- */
+function proxyFetch(targetUrl) {
+  const proxied = `${PROXY_URL}?url=${encodeURIComponent(targetUrl)}`;
+  return fetch(proxied);
+}
+
+/* -------------------------------------------------------------------------
+   FETCH & PARSE PocketWorld
+   ------------------------------------------------------------------------- */
+async function fetchFlights(bbox, limit) {
+  state.reqCount++;
+  updateReqBadge();
+
+  const target = `${API_BASE}/flights?wire=1&bbox=${bbox}` + (limit ? `&limit=${limit}` : '');
+
+  let res;
+  try {
+    res = await proxyFetch(target);
+  } catch (netErr) {
+    const e = new Error('NETWORK');
+    e.detail = netErr.message;
+    throw e;
+  }
+
+  if (res.status === 429) throw new Error('RATE_LIMIT');
+  if (!res.ok) {
+    const e = new Error('HTTP');
+    e.status = res.status;
+    throw e;
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error('PARSE');
+  }
+
+  const fields = data.flight_fields || [];
+  const rows   = data.flight_rows   || [];
+  const flights = rows.map((row) => parseFlightRow(row, fields));
+
+  return {
+    flights,
+    meta: {
+      count: data.count,
+      total: data.total,
+      bbox:  data.bbox,
+    },
+  };
+}
+
+function parseFlightRow(row, fields) {
+  const obj = {};
+  for (let i = 0; i < fields.length; i++) {
+    obj[fields[i]] = i < row.length ? row[i] : null;
+  }
+
+  let lastContact = obj.last_contact;
+  if (typeof lastContact !== 'number' || lastContact < 1e9) {
+    lastContact = row.find((v) => typeof v === 'number' && v > 1e9 && v < 2.5e9) || null;
+  }
+
+  return {
+    icao24:       String(obj.icao24 || '').toLowerCase(),
+    callsign:     String(obj.callsign || '').trim(),
+    country:      obj.country || '',
+    lat:          typeof obj.lat === 'number' ? obj.lat : null,
+    lng:          typeof obj.lng === 'number' ? obj.lng : null,
+    alt:          typeof obj.alt === 'number' ? obj.alt : null,
+    velocity:     typeof obj.velocity === 'number' ? obj.velocity : null,
+    heading:      typeof obj.heading === 'number' ? obj.heading : null,
+    verticalRate: typeof obj.vertical_rate === 'number' ? obj.vertical_rate : null,
+    onGround:     !!obj.on_ground,
+    squawk:       obj.squawk || null,
+    registration: obj.registration || null,
+    model:        obj.model || null,
+    typecode:     obj.typecode || null,
+    source:       obj.source || 'unknown',
+    lastContact,
+  };
+}
+
+async function fetchTrack(icao24) {
+  state.reqCount++;
+  updateReqBadge();
+
+  const target = `${API_BASE}/flight-track/${encodeURIComponent(icao24)}`;
+  const res = await proxyFetch(target);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data && Array.isArray(data.points) ? data.points : null;
+}
+
+async function fetchAirportDelays() {
+  state.reqCount++;
+  updateReqBadge();
+
+  const target = `${API_BASE}/airport-delays`;
+  const res = await proxyFetch(target);
+  if (!res.ok) throw new Error(`HTTP_${res.status}`);
+  const data = await res.json();
+  return data.delays || [];
+}
+
+function errorMessage(err) {
+  switch (err && err.message) {
+    case 'RATE_LIMIT':
+      return 'Rate limit tercapai (HTTP 429). Tunggu sebentar lalu coba lagi.';
+    case 'NETWORK':
+      return 'Gagal terhubung ke server. Periksa koneksi internet Anda' +
+             (err.detail ? ` (${escapeHtml(err.detail)})` : '') + '.';
+    case 'PARSE':
+      return 'Respons dari server tidak dapat dibaca (JSON tidak valid).';
+    case 'HTTP':
+      return `Server mengembalikan error HTTP ${err.status}. Coba lagi beberapa saat lagi.`;
+    default:
+      return 'Terjadi kesalahan: ' + escapeHtml(err && err.message ? err.message : String(err));
+  }
+}
+
+function showSearchError(err) {
+  searchStatus.innerHTML = `<div class="alert error">⚠️ ${errorMessage(err)}</div>`;
+}
+function clearSearchStatus() { searchStatus.innerHTML = ''; }
+
+function updateReqBadge() {
+  reqBadge.textContent = `${state.reqCount} request`;
+}
+
+/* -------------------------------------------------------------------------
+   PETA (Leaflet)
+   ------------------------------------------------------------------------- */
+let map, canvasRenderer, trackLayer, pathLayer, liveLayer, trackMarker = null;
+
+// Batas bbox Indonesia untuk fitBounds
+const BBOX_WEST  = 95;
+const BBOX_SOUTH = -11;
+const BBOX_EAST  = 141;
+const BBOX_NORTH = 6;
+
+function initMap() {
+  map = L.map('map', {
+    center: [-2.5, 118],
+    zoom: 5,
+    zoomControl: true,
+    preferCanvas: true,
+    worldCopyJump: true,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(map);
+
+  canvasRenderer = L.canvas({ padding: 0.5 });
+
+  pathLayer  = L.layerGroup().addTo(map);
+  trackLayer = L.layerGroup().addTo(map);
+  liveLayer  = L.layerGroup().addTo(map);
+}
+
+function planeIcon(heading) {
+  const h = (heading == null || !isFinite(heading)) ? 0 : heading;
+  return L.divIcon({
+    className: 'plane-icon',
+    html: `<div style="transform: rotate(${h}deg); transform-origin: 50% 50%;">
+             <svg width="26" height="26" viewBox="0 0 24 24">
+               <path d="M12 1.6 L13.7 9.4 L22.4 13.6 L22.4 15.6 L13.7 12.9 L12.9 19.4 L16.2 21.6 L16.2 23 L12 21.7 L7.8 23 L7.8 21.6 L11.1 19.4 L10.3 12.9 L1.6 15.6 L1.6 13.6 L10.3 9.4 Z"
+                     fill="#38bdf8" stroke="#04121f" stroke-width="0.7" stroke-linejoin="round"/>
+             </svg>
+           </div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}
+
+function popupHtml(a) {
+  const alt = a.alt != null
+    ? `${fmtNum(a.alt)} m <span style="color:#8b9bb4">/ ${fmtNum(mToFt(a.alt))} ft</span>`
+    : '—';
+  const spd = a.velocity != null
+    ? `${fmtNum(msToKmh(a.velocity))} km/j <span style="color:#8b9bb4">/ ${fmtNum(msToKt(a.velocity))} kt</span>`
+    : '—';
+
+  return `
+    <div style="min-width:180px">
+      <div style="font-size:14px;font-weight:700;color:#38bdf8;margin-bottom:4px">
+        ${escapeHtml(a.callsign || a.icao24.toUpperCase())}
+      </div>
+      <div style="color:#8b9bb4;font-size:11px;margin-bottom:6px">
+        ${escapeHtml(a.country || '—')} • ${escapeHtml(a.icao24.toUpperCase())}
+      </div>
+      <div>🛫 <b>Ketinggian:</b> ${alt}</div>
+      <div>💨 <b>Kecepatan:</b> ${spd}</div>
+      <div>🧭 <b>Arah:</b> ${a.heading != null ? fmtNum(a.heading) + '° ' + compass(a.heading) : '—'}</div>
+      <div>📡 <b>Status:</b> ${a.onGround ? 'On Ground' : 'Airborne'}</div>
+      ${a.model ? `<div>🛩 <b>Model:</b> ${escapeHtml(a.model)}</div>` : ''}
+      ${a.registration ? `<div>🔖 <b>Reg:</b> ${escapeHtml(a.registration)}</div>` : ''}
+    </div>`;
+}
+
+function updateTrackMarker(a) {
+  trackLayer.clearLayers();
+  trackMarker = null;
+
+  if (!a || a.lat == null || a.lng == null) return;
+
+  trackMarker = L.marker([a.lat, a.lng], {
+    icon: planeIcon(a.heading),
+    zIndexOffset: 1000,
+  });
+  trackMarker.bindPopup(popupHtml(a));
+  trackLayer.addLayer(trackMarker);
+}
+
+function drawTrackPath(points) {
+  pathLayer.clearLayers();
+  if (!points || points.length < 2) return;
+
+  const latlngs = points
+    .filter((p) => p.lat != null && p.lng != null)
+    .map((p) => [p.lat, p.lng]);
+
+  if (latlngs.length < 2) return;
+
+  L.polyline(latlngs, {
+    color: '#38bdf8',
+    weight: 2,
+    opacity: 0.55,
+    dashArray: '5,6',
+    renderer: canvasRenderer,
+  }).addTo(pathLayer);
+}
+
+/* -------------------------------------------------------------------------
+   RENDER HASIL & DETAIL
+   ------------------------------------------------------------------------- */
+function renderResults(list, query) {
+  state.results.clear();
+  list.forEach((a) => state.results.set(a.icao24, a));
+
+  if (!list.length) {
+    resultsEl.innerHTML =
+      `<div class="empty">Tidak ada pesawat yang cocok dengan "<b>${escapeHtml(query)}</b>".<br>
+       <span style="font-size:11px">Pesawat mungkin tidak ada di snapshot global saat ini.</span></div>`;
+    return;
+  }
+
+  const shown = list.slice(0, 60);
+  resultsEl.innerHTML = `
+    <div class="res-head">${list.length} pesawat ditemukan${list.length > 60 ? ' (menampilkan 60 pertama)' : ''} — klik untuk melacak</div>
+    <div class="res-list">
+      ${shown.map((a) => `
+        <button class="res-item" data-icao="${escapeHtml(a.icao24)}">
+          <span class="res-call">${escapeHtml(a.callsign || a.icao24.toUpperCase())}</span>
+          <span class="res-meta">
+            ${escapeHtml(a.country || '—')} •
+            ${a.alt != null ? fmtNum(a.alt) + ' m' : 'alt —'} •
+            ${a.onGround ? 'On Ground' : 'Airborne'}
+          </span>
+        </button>`).join('')}
+    </div>`;
+
+  resultsEl.querySelectorAll('.res-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      resultsEl.querySelectorAll('.res-item').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      startTracking(btn.dataset.icao);
+    });
+  });
+}
+
+function renderDetail(a) {
+  if (!a) {
+    detailEl.innerHTML =
+      '<div class="empty">Klik salah satu hasil untuk melihat detail &amp; melacak di peta.</div>';
+    return;
+  }
+
+  const altVal = a.alt != null
+    ? `${fmtNum(a.alt)} m <span class="dim">/ ${fmtNum(mToFt(a.alt))} ft</span>`
+    : '—';
+
+  const spdVal = a.velocity != null
+    ? `${fmtNum(msToKmh(a.velocity))} km/j <span class="dim">/ ${fmtNum(msToKt(a.velocity))} kt</span>`
+    : '—';
+
+  let vrVal = '—';
+  if (a.verticalRate != null && isFinite(a.verticalRate)) {
+    const arrow = a.verticalRate > 0.3 ? '▲' : (a.verticalRate < -0.3 ? '▼' : '●');
+    const color = a.verticalRate > 0.3 ? '#22c55e' : (a.verticalRate < -0.3 ? '#ef4444' : '#8b9bb4');
+    vrVal = `<span style="color:${color}">${arrow} ${fmtNum(Math.abs(a.verticalRate) * MS_TO_FTMIN)} ft/min</span>
+             <span class="dim">/ ${fmtNum(Math.abs(a.verticalRate), 1)} m/s</span>`;
+  }
+
+  const heading = a.heading != null
+    ? `${fmtNum(a.heading)}° <span class="dim">${compass(a.heading)}</span>`
+    : '—';
+
+  const rows = [
+    ['Callsign',        a.callsign ? escapeHtml(a.callsign) : '<span class="dim">—</span>'],
+    ['ICAO24',          escapeHtml(a.icao24.toUpperCase())],
+    ['Negara Asal',     escapeHtml(a.country || '—')],
+    ['Status',          a.onGround
+                          ? '<span class="tag ground">On Ground</span>'
+                          : '<span class="tag air">Airborne</span>'],
+    ['Latitude',        a.lat  != null ? a.lat.toFixed(5) + '°'  : '—'],
+    ['Longitude',       a.lng != null ? a.lng.toFixed(5) + '°' : '—'],
+    ['Ketinggian',      altVal],
+    ['Kecepatan',       spdVal],
+    ['Arah (Heading)',  heading],
+    ['Vertical Rate',   vrVal],
+    ['Squawk',          a.squawk ? escapeHtml(a.squawk) : '<span class="dim">—</span>'],
+    ['Registrasi',      a.registration ? escapeHtml(a.registration) : '<span class="dim">—</span>'],
+    ['Model',           a.model ? escapeHtml(a.model) : '<span class="dim">—</span>'],
+    ['Sumber Data',     escapeHtml(a.source || '—')],
+    ['Terakhir Update', a.lastContact
+                          ? `${fmtTime(a.lastContact)} <span class="dim">(${relTime(a.lastContact)})</span>`
+                          : '—'],
+  ];
+
+  detailEl.innerHTML = `
+    <div class="detail-grid">
+      ${rows.map(([k, v]) => `
+        <div class="detail-row"><span class="k">${k}</span><span class="v">${v}</span></div>
+      `).join('')}
+    </div>
+    <div class="hint" style="margin-top:10px">
+      🔄 Auto-refresh posisi setiap ${REFRESH_TRACKED / 1000} detik (dijeda saat tab tidak aktif).
+    </div>`;
+}
+
+/* -------------------------------------------------------------------------
+   ALUR PENCARIAN
+   ------------------------------------------------------------------------- */
+async function doSearch() {
+  const raw = searchInput.value.trim();
+  if (!raw) {
+    searchStatus.innerHTML = '<div class="alert warn">Masukkan callsign atau kode ICAO24 terlebih dahulu.</div>';
+    return;
+  }
+
+  clearSearchStatus();
+  setSearching(true);
+
+  try {
+    searchStatus.innerHTML =
+      `<div class="loading-line"><span class="spinner"></span> Memindai snapshot global…</div>`;
+
+    const { flights } = await getGlobalSnapshot();
+
+    const q = raw.toUpperCase().replace(/\s+/g, '');
+    const isIcao = /^[0-9A-F]{6}$/i.test(raw);
+
+    const list = flights.filter((a) => {
+      if (isIcao) return a.icao24.toLowerCase() === raw.toLowerCase();
+      return a.callsign && a.callsign.toUpperCase().replace(/\s+/g, '').includes(q);
+    });
+
+    clearSearchStatus();
+    renderResults(list, raw);
+
+    if (list.length > 0) {
+      const withPos = list.find((a) => a.lat != null && a.lng != null) || list[0];
+      renderDetail(withPos);
+    } else {
+      renderDetail(null);
+
+      if (isIcao) {
+        searchStatus.innerHTML =
+          `<div class="loading-line"><span class="spinner"></span> Mencari via riwayat track…</div>`;
+        const points = await fetchTrack(raw.toLowerCase());
+        if (points && points.length) {
+          const last = points[points.length - 1];
+          const stub = {
+            icao24: raw.toLowerCase(), callsign: '', country: '',
+            lat: last.lat, lng: last.lng, alt: last.alt,
+            velocity: null, heading: last.heading, verticalRate: null,
+            onGround: false, squawk: null, registration: null,
+            model: null, typecode: null, source: 'pocketworld_track',
+            lastContact: last.time,
+          };
+          renderResults([stub], raw);
+          renderDetail(stub);
+          searchStatus.innerHTML =
+            '<div class="alert info">Pesawat tidak ada di snapshot global, tetapi riwayat track ditemukan.</div>';
+          startTracking(raw.toLowerCase());
+        } else {
+          searchStatus.innerHTML =
+            '<div class="alert warn">Pesawat tidak ditemukan di snapshot global maupun riwayat track.</div>';
+        }
+      } else {
+        searchStatus.innerHTML =
+          '<div class="alert warn">Callsign tidak ditemukan di snapshot global (top 5.000 pesawat).</div>';
+      }
+    }
+
+  } catch (err) {
+    clearSearchStatus();
+    showSearchError(err);
+    renderResults([], raw);
+  } finally {
+    setSearching(false);
+  }
+}
+
+async function getGlobalSnapshot() {
+  const now = Date.now();
+  if (cache.global.data && now - cache.global.ts < CACHE_TTL_SEARCH) {
+    return { flights: cache.global.data };
+  }
+  const { flights } = await fetchFlights(GLOBAL_BBOX, GLOBAL_LIMIT);
+  cache.global = { ts: now, data: flights };
+  return { flights };
+}
+
+function setSearching(on) {
+  btnSearch.disabled = on;
+  btnSearch.innerHTML = on ? '<span class="spinner"></span>' : 'Cari';
+}
+
+/* -------------------------------------------------------------------------
+   PELACAKAN PESAWAT
+   ------------------------------------------------------------------------- */
+function startTracking(icao24) {
+  if (!icao24) return;
+
+  state.trackedIcao = icao24;
+  clearInterval(state.trackedTimer);
+
+  refreshTracked(true);
+
+  state.trackedTimer = setInterval(() => {
+    if (document.hidden) return;
+    refreshTracked(false);
+  }, REFRESH_TRACKED);
+}
+
+function stopTracking() {
+  clearInterval(state.trackedTimer);
+  state.trackedTimer = null;
+  state.trackedIcao = null;
+  state.tracked = null;
+}
+
+async function refreshTracked(force) {
+  if (!state.trackedIcao) return;
+
+  try {
+    const a = state.tracked;
+
+    let bbox;
+    if (a && a.lat != null && a.lng != null) {
+      const { lat, lng } = a;
+      bbox = `${lng - TRACK_PAD},${lat - TRACK_PAD},${lng + TRACK_PAD},${lat + TRACK_PAD}`;
+    } else {
+      bbox = LIVE_BBOX;
+    }
+
+    const cacheKey = bbox;
+    const now = Date.now();
+    const cached = cache.bbox.get(cacheKey);
+
+    let flights;
+    if (!force && cached && now - cached.ts < CACHE_TTL_BBOX) {
+      flights = cached.flights;
+    } else {
+      const res = await fetchFlights(bbox, 2000);
+      flights = res.flights;
+      cache.bbox.set(cacheKey, { ts: now, flights });
+    }
+
+    const found = flights.find((f) => f.icao24 === state.trackedIcao);
+
+    if (!found) {
+      searchStatus.innerHTML =
+        '<div class="alert warn">Pesawat tidak lagi muncul di sekitar posisi terakhir.</div>';
+      return;
+    }
+
+    state.tracked = found;
+    renderDetail(found);
+    updateTrackMarker(found);
+
+    if (force && found.lat != null && found.lng != null) {
+      map.flyTo([found.lat, found.lng], Math.max(map.getZoom(), 7), { duration: 1.1 });
+
+      fetchTrack(state.trackedIcao).then((points) => {
+        if (points) drawTrackPath(points);
+      });
+    }
+
+    if (trackMarker) trackMarker.setPopupContent(popupHtml(found));
+
+  } catch (err) {
+    showSearchError(err);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   LIVE MAP MODE
+   ------------------------------------------------------------------------- */
+async function toggleLiveMode(force = false) {
+  state.liveMode = !state.liveMode;
+  btnLive.textContent = `🛰 Live Map: ${state.liveMode ? 'ON' : 'OFF'}`;
+  btnLive.classList.toggle('primary', state.liveMode);
+  legendEl.classList.toggle('show', state.liveMode);
+
+  if (!state.liveMode) {
+    liveLayer.clearLayers();
+    liveCountEl.textContent = '—';
+    clearInterval(state.liveTimer);
+    state.liveTimer = null;
+    return;
+  }
+
+  await loadLiveMap(force);
+
+  clearInterval(state.liveTimer);
+  state.liveTimer = setInterval(() => {
+    if (document.hidden) return;
+    if (!state.liveMode) return;
+    loadLiveMap(false);
+  }, REFRESH_LIVE);
+}
+
+async function loadLiveMap(force) {
+  liveCountEl.textContent = 'memuat…';
+  searchStatus.innerHTML =
+    `<div class="loading-line"><span class="spinner"></span> Memuat pesawat di wilayah Indonesia…</div>`;
+
+  try {
+    const now = Date.now();
+    const cached = cache.bbox.get(LIVE_BBOX);
+
+    let flights;
+    if (!force && cached && now - cached.ts < CACHE_TTL_LIVE) {
+      flights = cached.flights;
+    } else {
+      const res = await fetchFlights(LIVE_BBOX, 3000);
+      flights = res.flights;
+      cache.bbox.set(LIVE_BBOX, { ts: now, flights });
+    }
+
+    clearSearchStatus();
+    renderLiveMarkers(flights);
+
+  } catch (err) {
+    clearSearchStatus();
+    liveCountEl.textContent = 'error';
+    showSearchError(err);
+  }
+}
+
+function renderLiveMarkers(flights) {
+  liveLayer.clearLayers();
+  let count = 0;
+
+  for (const a of flights) {
+    if (a.lat == null || a.lng == null) continue;
+
+    const color = altColor(a.alt);
+
+    const marker = L.circleMarker([a.lat, a.lng], {
+      renderer: canvasRenderer,
+      radius: 4.5,
+      color: color,
+      weight: 1,
+      opacity: 0.95,
+      fillColor: color,
+      fillOpacity: 0.82,
+    });
+
+    marker.bindPopup(popupHtml(a));
+    liveLayer.addLayer(marker);
+    count++;
+  }
+
+  liveCountEl.textContent = `${fmtNum(count)} pesawat`;
+
+  if (count > 0 && !map._liveFitted) {
+    map.fitBounds([[BBOX_SOUTH, BBOX_WEST], [BBOX_NORTH, BBOX_EAST]], { padding: [20, 20] });
+    map._liveFitted = true;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   DELAY & JADWAL
+   ------------------------------------------------------------------------- */
+async function loadAirportDelays() {
+  btnAirportDelays.disabled = true;
+  btnAirportDelays.innerHTML = '<span class="spinner"></span> Memuat…';
+  airportDelaysEl.innerHTML = '';
+
+  try {
+    const delays = await fetchAirportDelays();
+
+    if (!delays.length) {
+      airportDelaysEl.innerHTML = '<div class="alert warn">Tidak ada data delay bandara saat ini.</div>';
+      return;
+    }
+
+    const sorted = [...delays].sort((a, b) => (b.delay_minutes || 0) - (a.delay_minutes || 0));
+    const top = sorted.slice(0, 10);
+
+    airportDelaysEl.innerHTML = `
+      <div class="res-head" style="margin-top:10px">Top ${top.length} bandara (berdasarkan delay):</div>
+      <div class="res-list" style="max-height:220px">
+        ${top.map((d) => {
+          const isDelayed = (d.delay_minutes || 0) > 0;
+          const color = isDelayed ? '#f87171' : '#4ade80';
+          return `
+            <div class="res-item" style="cursor:default">
+              <span class="res-call" style="font-size:13px">${escapeHtml(d.iata)} — ${escapeHtml(d.name)}</span>
+              <span class="res-meta" style="color:${color}">
+                ${isDelayed ? `Delay ${fmtNum(d.delay_minutes)} menit` : 'Normal'} • ${escapeHtml(d.status || '—')}
+              </span>
+            </div>`;
+        }).join('')}
+      </div>`;
+
+  } catch (err) {
+    airportDelaysEl.innerHTML = `<div class="alert error">⚠️ ${errorMessage(err)}</div>`;
+  } finally {
+    btnAirportDelays.disabled = false;
+    btnAirportDelays.textContent = '🛬 Muat Delay Bandara (PocketWorld)';
+  }
+}
+
+async function checkAviationStack() {
+  const key = avKey.value.trim();
+  if (!key) {
+    avResult.innerHTML =
+      '<div class="alert warn">Masukkan API key AviationStack terlebih dahulu.</div>';
+    return;
+  }
+
+  let flight = avFlight.value.trim().toUpperCase();
+  if (!flight && state.tracked && state.tracked.callsign) {
+    flight = state.tracked.callsign.toUpperCase();
+  }
+  if (!flight) {
+    avResult.innerHTML =
+      '<div class="alert warn">Masukkan kode Flight IATA (contoh: <b>GA123</b>) atau lacak pesawat terlebih dahulu.</div>';
+    return;
+  }
+
+  btnAv.disabled = true;
+  btnAv.innerHTML = '<span class="spinner"></span>';
+  avResult.innerHTML =
+    `<div class="loading-line"><span class="spinner"></span> Menghubungi AviationStack untuk <b>${escapeHtml(flight)}</b>…</div>`;
+
+  const target = `http://api.aviationstack.com/v1/flights?access_key=${encodeURIComponent(key)}&flight_iata=${encodeURIComponent(flight)}`;
+
+  try {
+    // Lewat proxy juga supaya tidak kena mixed content
+    const res = await proxyFetch(target);
+    const data = await res.json();
+
+    if (data && data.error) {
+      avResult.innerHTML =
+        `<div class="alert error">⚠️ AviationStack: ${escapeHtml(data.error.message || data.error.code || 'error')}</div>`;
+      return;
+    }
+
+    const flights = data && data.data ? data.data : [];
+    if (!flights.length) {
+      avResult.innerHTML =
+        `<div class="alert warn">Tidak ada data penerbangan untuk <b>${escapeHtml(flight)}</b>.</div>`;
+      return;
+    }
+
+    avResult.innerHTML = flights.slice(0, 4).map(renderAviationCard).join('');
+
+  } catch (err) {
+    avResult.innerHTML = `<div class="alert error">⚠️ Gagal menghubungi AviationStack: ${escapeHtml(err.message)}</div>`;
+  } finally {
+    btnAv.disabled = false;
+    btnAv.textContent = 'Cek Delay & Jadwal Penerbangan';
+  }
+}
+
+function renderAviationCard(f) {
+  const dep = f.departure || {};
+  const arr = f.arrival   || {};
+  const airline = (f.airline && f.airline.name) || '—';
+  const flightIata = (f.flight && f.flight.iata) || '—';
+  const status = f.flight_status || 'unknown';
+
+  const statusColor =
+    status === 'landed'    ? '#8b9bb4' :
+    status === 'active'    ? '#22c55e' :
+    status === 'cancelled' ? '#ef4444' :
+    status === 'delayed'   ? '#eab308' : '#38bdf8';
+
+  const delayTxt = (d) =>
+    d == null ? '<span class="dim">—</span>'
+      : d > 0 ? `<span style="color:#f87171">+${fmtNum(d)} menit</span>`
+      : `<span style="color:#4ade80">tepat waktu</span>`;
+
+  const row = (k, v) =>
+    `<div class="detail-row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+
+  return `
+    <div class="card" style="margin-top:10px;box-shadow:none;background:#0e1829">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+        <b style="font-size:14px;color:var(--accent)">${escapeHtml(flightIata)}</b>
+        <span class="tag" style="background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}66">
+          ${escapeHtml(status)}
+        </span>
+      </div>
+      <div class="detail-grid">
+        ${row('Maskapai', escapeHtml(airline))}
+        ${row('Keberangkatan', escapeHtml(dep.airport || '—') + (dep.iata ? ` <span class="dim">(${escapeHtml(dep.iata)})</span>` : ''))}
+        ${row('Jadwal Berangkat', dep.scheduled ? escapeHtml(new Date(dep.scheduled).toLocaleString('id-ID')) : '—')}
+        ${row('Delay Berangkat', delayTxt(dep.delay))}
+        ${row('Kedatangan', escapeHtml(arr.airport || '—') + (arr.iata ? ` <span class="dim">(${escapeHtml(arr.iata)})</span>` : ''))}
+        ${row('Jadwal Tiba', arr.scheduled ? escapeHtml(new Date(arr.scheduled).toLocaleString('id-ID')) : '—')}
+        ${row('Delay Tiba', delayTxt(arr.delay))}
+      </div>
+    </div>`;
+}
+
+/* -------------------------------------------------------------------------
+   RESET
+   ------------------------------------------------------------------------- */
+function resetAll() {
+  searchInput.value = '';
+  clearSearchStatus();
+  resultsEl.innerHTML = '<div class="empty">Belum ada pencarian.</div>';
+  renderDetail(null);
+  state.results.clear();
+
+  stopTracking();
+  trackLayer.clearLayers();
+  pathLayer.clearLayers();
+  trackMarker = null;
+
+  if (state.liveMode) toggleLiveMode();
+
+  map.flyTo([-2.5, 118], 5, { duration: 0.8 });
+}
+
+/* -------------------------------------------------------------------------
+   INISIALISASI
+   ------------------------------------------------------------------------- */
+function init() {
+  initMap();
+
+  // Cek apakah PROXY_URL sudah diganti
+  if (PROXY_URL.includes('USERNAME')) {
+    searchStatus.innerHTML =
+      '<div class="alert error">⚠️ <b>PROXY_URL belum diisi!</b><br>' +
+      'Buka file index.html, cari baris <code>const PROXY_URL = ...</code>, ' +
+      'dan ganti dengan URL Cloudflare Worker kamu.</div>';
+  }
+
+  btnSearch.addEventListener('click', doSearch);
+  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+
+  btnReset.addEventListener('click', resetAll);
+
+  btnLive.addEventListener('click', () => toggleLiveMode(true));
+  btnRefreshMap.addEventListener('click', () => {
+    if (state.liveMode) {
+      loadLiveMap(true);
+    } else if (state.trackedIcao) {
+      refreshTracked(true);
+    } else {
+      toggleLiveMode(true);
+    }
+  });
+
+  btnAirportDelays.addEventListener('click', loadAirportDelays);
+
+  btnAv.addEventListener('click', checkAviationStack);
+  avFlight.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAviationStack(); });
+
+  window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+
+  renderDetail(null);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+
+</body>
+</html>
