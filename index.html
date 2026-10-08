@@ -282,6 +282,11 @@ input:focus {
 }
 #map { width: 100%; height: 100%; background: #0b1220; }
 
+/* Filter biar peta OSM tampil gelap (invert + hue rotate) */
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+}
+
 .map-overlay {
   position: absolute; top: 10px; left: 10px;
   display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
@@ -464,15 +469,10 @@ input:focus {
 <script>
 /* =========================================================================
    FLIGHT TRACKER — PocketWorld API via Cloudflare Worker Proxy
-   =========================================================================
-   ⚠️ LANGKAH WAJIB:
-   Ganti nilai PROXY_URL di bawah ini dengan URL Cloudflare Worker kamu.
-   Contoh: 'https://flight-proxy.namamu.workers.dev'
    ========================================================================= */
 
 const PROXY_URL = 'https://flight-tracker.desgny.workers.dev';
-
-const API_BASE = 'https://pocketworld.org/api';
+const API_BASE  = 'https://pocketworld.org/api';
 
 /* -------------------------------------------------------------------------
    KONFIGURASI
@@ -720,7 +720,6 @@ function updateReqBadge() {
    ------------------------------------------------------------------------- */
 let map, canvasRenderer, trackLayer, pathLayer, liveLayer, trackMarker = null;
 
-// Batas bbox Indonesia untuk fitBounds
 const BBOX_WEST  = 95;
 const BBOX_SOUTH = -11;
 const BBOX_EAST  = 141;
@@ -735,9 +734,10 @@ function initMap() {
     worldCopyJump: true,
   });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
+  // OpenStreetMap standar — gratis, tanpa API key.
+  // Filter CSS di atas (.leaflet-tile-pane) membuatnya tampil gelap.
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
 
@@ -1242,7 +1242,6 @@ async function checkAviationStack() {
   const target = `http://api.aviationstack.com/v1/flights?access_key=${encodeURIComponent(key)}&flight_iata=${encodeURIComponent(flight)}`;
 
   try {
-    // Lewat proxy juga supaya tidak kena mixed content
     const res = await proxyFetch(target);
     const data = await res.json();
 
@@ -1336,7 +1335,6 @@ function resetAll() {
 function init() {
   initMap();
 
-  // Cek apakah PROXY_URL sudah diganti
   if (PROXY_URL.includes('USERNAME')) {
     searchStatus.innerHTML =
       '<div class="alert error">⚠️ <b>PROXY_URL belum diisi!</b><br>' +
